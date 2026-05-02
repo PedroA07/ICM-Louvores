@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>ICM Louvores</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0D0304;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100vh; font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #fff; user-select: none;
+  }
+  .logo {
+    width: 100px; height: 100px; border-radius: 20px;
+    background: linear-gradient(145deg, #9e1f15, #C0271A);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    margin-bottom: 28px;
+    box-shadow: 0 12px 40px rgba(192,39,26,0.4);
+  }
+  .logo .icm {
+    font-size: 34px; font-weight: 900; font-style: italic;
+    color: #fff; letter-spacing: -2px; line-height: 1;
+  }
+  .logo .sub {
+    font-size: 7px; color: rgba(255,255,255,0.8);
+    letter-spacing: 0.8px; text-align: center; margin-top: 4px;
+  }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  #subtitle { font-size: 13px; color: #C09090; margin-bottom: 32px; }
+  .bar-wrap {
+    width: 280px; height: 4px; background: #3D1214;
+    border-radius: 2px; overflow: hidden;
+  }
+  .bar {
+    height: 100%; width: 30%;
+    background: #C0271A; border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+  .bar.indeterminate {
+    width: 30% !important;
+    animation: loading 1.4s ease-in-out infinite;
+  }
+  @keyframes loading {
+    0%   { transform: translateX(-100%); width: 30%; }
+    50%  { width: 60%; }
+    100% { transform: translateX(400%); width: 30%; }
+  }
+  .status { margin-top: 16px; font-size: 11px; color: #7A5050; text-align: center; max-width: 300px; }
+  #pct { margin-top: 8px; font-size: 11px; color: #C07060; font-weight: 600; }
+
+  /* download mode extras */
+  #download-info {
+    display: none;
+    flex-direction: column; align-items: center;
+    margin-bottom: 24px; text-align: center;
+  }
+  #download-info p {
+    font-size: 12px; color: #C09090; max-width: 300px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+  <div class="logo">
+    <span class="icm">icm</span>
+    <span class="sub">IGREJA CRISTÃ<br>MARANATA</span>
+  </div>
+  <h1>ICM Louvores</h1>
+  <p id="subtitle">Carregando louvores e metadados…</p>
+
+  <div id="download-info">
+    <p>Primeira execução — os louvores serão baixados automaticamente.<br>Isso pode levar alguns minutos dependendo da sua conexão.</p>
+  </div>
+
+  <div class="bar-wrap"><div class="bar indeterminate" id="bar"></div></div>
+  <div class="status" id="status">Iniciando…</div>
+  <div id="pct"></div>
+
+  <script>
+    const statusEl  = document.getElementById('status');
+    const barEl     = document.getElementById('bar');
+    const pctEl     = document.getElementById('pct');
+    const subtitleEl = document.getElementById('subtitle');
+    const dlInfo    = document.getElementById('download-info');
+
+    // Cycling messages while waiting for server (non-download mode)
+    const msgs = [
+      'Iniciando servidor…',
+      'Lendo metadados dos áudios…',
+      'Carregando partituras…',
+      'Quase pronto…',
+    ];
+    let msgIdx = 0;
+    let cycleInterval = setInterval(() => {
+      msgIdx = (msgIdx + 1) % msgs.length;
+      if (!downloadMode) statusEl.textContent = msgs[msgIdx];
+    }, 2500);
+
+    let downloadMode = false;
+
+    // IPC progress from main process
+    if (window.icm) {
+      window.icm.onProgress(({ phase, percent, status }) => {
+        downloadMode = true;
+        clearInterval(cycleInterval);
+
+        if (phase === 'download' || phase === 'extract') {
+          subtitleEl.style.display = 'none';
+          dlInfo.style.display = 'flex';
+        }
+
+        statusEl.textContent = status || '';
+
+        if (percent >= 0) {
+          barEl.classList.remove('indeterminate');
+          barEl.style.width = percent + '%';
+          pctEl.textContent = percent + '%';
+        } else {
+          barEl.classList.add('indeterminate');
+          pctEl.textContent = '';
+        }
+
+        if (phase === 'server') {
+          // Download done, back to server loading mode
+          dlInfo.style.display = 'none';
+          subtitleEl.style.display = '';
+          barEl.classList.add('indeterminate');
+          pctEl.textContent = '';
+        }
+      });
+    }
+
+    // Poll until the server responds, then load app
+    function poll() {
+      fetch('http://localhost:3131/api/catalog')
+        .then(r => { if (r.ok) window.location = 'http://localhost:3131'; else setTimeout(poll, 600); })
+        .catch(() => setTimeout(poll, 600));
+    }
+    setTimeout(poll, 1500);
+  </script>
+</body>
+</html>

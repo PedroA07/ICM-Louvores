@@ -1,0 +1,63 @@
+{
+  "name": "icm-louvores",
+  "version": "1.0.0",
+  "description": "Reprodutor de Louvores da Igreja Cristã Maranata",
+  "author": "Igreja Cristã Maranata",
+  "main": "main.js",
+  "scripts": {
+    "start": "node server.js",
+    "electron": "electron .",
+    "build": "electron-builder --win"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "extract-zip": "^2.0.1",
+    "music-metadata": "^7.14.0"
+  },
+  "devDependencies": {
+    "electron": "^41.5.0",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.icm.louvores",
+    "productName": "ICM Louvores",
+    "copyright": "Igreja Cristã Maranata",
+    "asar": false,
+    "files": [
+      "main.js",
+      "preload.js",
+      "server.js",
+      "public/**/*",
+      "node_modules/**/*",
+      "!node_modules/electron/**",
+      "!node_modules/electron-builder/**",
+      "!louvores/**",
+      "!*.zip",
+      "!server.log",
+      "!dist/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ICM Louvores",
+      "deleteAppDataOnUninstall": false
+    },
+    "directories": {
+      "output": "dist",
+      "buildResources": "build-resources"
+    }
+  }
+}
