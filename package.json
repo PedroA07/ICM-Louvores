@@ -1,15 +1,17 @@
 {
   "name": "icm-louvores",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Reprodutor de Louvores da Igreja Cristã Maranata",
   "author": "Igreja Cristã Maranata",
   "main": "main.js",
   "scripts": {
     "start": "node server.js",
     "electron": "electron .",
-    "build": "electron-builder --win"
+    "build": "electron-builder --win",
+    "publish": "electron-builder --win --publish always"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "express": "^4.18.2",
     "extract-zip": "^2.0.1",
     "music-metadata": "^7.14.0"
@@ -23,6 +25,11 @@
     "productName": "ICM Louvores",
     "copyright": "Igreja Cristã Maranata",
     "asar": false,
+    "publish": {
+      "provider": "github",
+      "owner": "PedroA07",
+      "repo": "ICM-Louvores"
+    },
     "files": [
       "main.js",
       "preload.js",
@@ -37,14 +44,7 @@
       "!dist/**"
     ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
       "icon": "public/icon.ico"
     },
     "nsis": {

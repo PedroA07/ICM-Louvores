@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, Menu, shell, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs   = require('fs');
 const http = require('http');
@@ -6,6 +7,41 @@ const https = require('https');
 
 let win;
 let serverStarted = false;
+
+// ── Auto-updater setup ──
+autoUpdater.autoDownload = true;        // baixa automaticamente em segundo plano
+autoUpdater.autoInstallOnAppQuit = true; // instala ao fechar o app
+
+function setupAutoUpdater() {
+  // Não verificar em desenvolvimento
+  if (!app.isPackaged) return;
+
+  // Verificar atualizações 5 segundos após o app carregar
+  setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 5000);
+
+  autoUpdater.on('update-available', info => {
+    // Notificação discreta no log — o download já começa automático
+    console.log(`Atualização disponível: v${info.version} — baixando em segundo plano...`);
+  });
+
+  autoUpdater.on('update-downloaded', info => {
+    dialog.showMessageBox(win, {
+      type: 'info',
+      icon: path.join(__dirname, 'public', 'icon.png'),
+      title: 'Atualização pronta',
+      message: `ICM Louvores v${info.version} foi baixado e está pronto para instalar.`,
+      detail: 'Reinicie o aplicativo agora para aplicar a atualização, ou depois na próxima vez que fechar.',
+      buttons: ['Reiniciar agora', 'Depois'],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall(false, true);
+    });
+  });
+
+  autoUpdater.on('error', () => {
+    // Silencioso — falhas de rede são normais (ex: sem internet)
+  });
+}
 
 // ── Config ──
 const configFile = path.join(app.getPath('userData'), 'config.json');
@@ -78,7 +114,6 @@ async function downloadLouvores() {
 
   sendProgress({ phase: 'download', percent: 0, status: 'Conectando ao servidor…' });
 
-  // Download
   await new Promise((resolve, reject) => {
     httpsGetFollow(LOUVORES_DOWNLOAD_URL, (err, res) => {
       if (err) return reject(err);
@@ -114,12 +149,10 @@ async function downloadLouvores() {
     });
   });
 
-  // Extract
   sendProgress({ phase: 'extract', percent: -1, status: 'Extraindo arquivos… (pode levar alguns minutos)' });
   const extract = require('extract-zip');
   await extract(zipPath, { dir: destDir });
 
-  // Cleanup
   try { fs.unlinkSync(zipPath); } catch {}
 
   return path.join(destDir, 'Material para ensaio');
@@ -194,6 +227,18 @@ function createWindow() {
             }
           }
         },
+        {
+          label: 'Verificar atualizações…',
+          click: () => {
+            if (!app.isPackaged) {
+              dialog.showMessageBox(win, { type: 'info', title: 'Desenvolvimento', message: 'Verificação de atualizações disponível apenas no app instalado.', buttons: ['OK'] });
+              return;
+            }
+            autoUpdater.checkForUpdates().catch(() => {
+              dialog.showMessageBox(win, { type: 'error', title: 'Erro', message: 'Não foi possível verificar atualizações. Verifique sua conexão.', buttons: ['OK'] });
+            });
+          }
+        },
         { type: 'separator' },
         { label: 'Sair', accelerator: 'Alt+F4', click: () => app.quit() },
       ]
@@ -224,7 +269,6 @@ app.whenReady().then(async () => {
       louvoresPath = await downloadLouvores();
       writeConfig({ louvoresPath });
     } catch (err) {
-      // Fallback: ask user for folder
       const { response } = await dialog.showMessageBox(win, {
         type: 'error',
         title: 'Falha no download',
@@ -250,7 +294,11 @@ app.whenReady().then(async () => {
 
   waitForServer('http://localhost:3131/api/catalog')
     .then(() => {
-      if (win && !win.isDestroyed()) win.loadURL('http://localhost:3131');
+      if (win && !win.isDestroyed()) {
+        win.loadURL('http://localhost:3131');
+        // Verificar atualizações após o app carregar completamente
+        setupAutoUpdater();
+      }
     })
     .catch(() => {
       dialog.showErrorBox('Erro', 'Não foi possível iniciar o servidor. Tente reiniciar o app.');
